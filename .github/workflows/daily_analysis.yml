@@ -57,6 +57,35 @@ jobs:
           mkdir -p data logs reports
       
       - name: 执行股票分析
+            - name: 执行股票分析
+        env:
+          # 1. 开启多渠道模式（这是让 LiteLLM 工作的开关）
+          LLM_CHANNELS: "gemini,aihubmix"
+
+          # 2. 配置 Gemini 渠道
+          LLM_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          LLM_GEMINI_MODELS: "gemini/gemini-1.5-flash" # 主力模型
+
+          # 3. 配置 AIHubMix 渠道 (提供后备模型)
+          LLM_AIHUBMIX_API_KEY: ${{ secrets.AIHUBMIX_KEY }}
+          LLM_AIHUBMIX_BASE_URL: "https://api.aihubmix.com/v1"
+          LLM_AIHUBMIX_MODELS: "gpt-4o-mini,claude-3-5-sonnet"
+
+          # 4. 设置 Fallback（自动切换逻辑）
+          # 主模型：Gemini
+          LITELLM_MODEL: "gemini/gemini-1.5-flash"
+          # 备选模型：如果 Gemini 挂了（如 429 频率限制），按顺序尝试这两个
+          LITELLM_FALLBACK_MODELS: "openai/gpt-4o-mini,openai/claude-3-5-sonnet"
+          
+          # 5. 增强配置（针对 Gemini 免费版和联网搜索）
+          GEMINI_REQUEST_DELAY: "15" # 必须加，防止请求太快被封
+          ENABLE_SEARCH: "true"
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+          
+          # 其他数据源配置
+          STOCK_DATA_SOURCE: "Yfinance"
+          DATA_SOURCE_ORDER: "Yfinance,Efinance"
+
         env:
           # ==========================================
           # AI 配置
