@@ -60,14 +60,14 @@ jobs:
         env:
   # 核心模型路由
           LLM_CHANNELS: "gemini,anthropic,openai,aihubmix"
-          LITELLM_MODEL: "gemini/gemini-1.5-flash"
-          LITELLM_FALLBACK_MODELS: "anthropic/claude-3-5-sonnet-20241022,openai/deepseek-reasoner"
+          LITELLM_MODEL: "gemini/gemini-3-flash-preview"
+          LITELLM_FALLBACK_MODELS: "anthropic/claude-3-5-sonnet-20241022,deepseek/deepseek-reasoner"
 
   # 引用 Secrets（这里不用改，保持引用即可）
           LLM_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          OPENAI_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-          OPENAI_API_BASE: "https://api.deepseek.com"
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          DEEPSEEK_API_BASE: "https://api.deepseek.com"
 
   # 频率保护 (在这里改！不要在 .env 改)
           ANALYSIS_DELAY: "35"
@@ -76,18 +76,10 @@ jobs:
           REPORT_RENDERER_ENABLED: "true"
           REPORT_HISTORY_COMPARE_N: "5"
 
-1.5-flashgemini-3-flash-preview" # 主力模型
-
           # 3. 配置 AIHubMix 渠道 (提供后备模型)
           LLM_AIHUBMIX_API_KEY: ${{ secrets.AIHUBMIX_KEY }}
           LLM_AIHUBMIX_BASE_URL: "https://api.aihubmix.com/v1"
           LLM_AIHUBMIX_MODELS: "gpt-4o-mini,claude-3-5-sonnet"
-
-          # 4. 设置 Fallback（自动切换逻辑）
-          # 主模型：Gemini
-          LITELLM_MODEL: "gemini-3-flash-preview"
-          # 备选模型：如果 Gemini 挂了（如 429 频率限制），按顺序尝试这两个
-          LITELLM_FALLBACK_MODELS: "openai/gpt-4o-mini,openai/claude-3-5-sonnet"
           
           # ==========================================
           # 数据源
