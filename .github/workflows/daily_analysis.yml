@@ -58,12 +58,25 @@ jobs:
       
       - name: 执行股票分析
         env:
-          # 1. 开启多渠道模式（这是让 LiteLLM 工作的开关）
-          LLM_CHANNELS: "gemini,aihubmix"
+  # 核心模型路由
+          LLM_CHANNELS: "gemini,anthropic,openai,aihubmix"
+          LITELLM_MODEL: "gemini/gemini-1.5-flash"
+          LITELLM_FALLBACK_MODELS: "anthropic/claude-3-5-sonnet-20241022,openai/deepseek-reasoner"
 
-          # 2. 配置 Gemini 渠道
+  # 引用 Secrets（这里不用改，保持引用即可）
           LLM_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          LLM_GEMINI_MODELS: "gemini/gemini-1.5-flashgemini-3-flash-preview" # 主力模型
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          OPENAI_API_BASE: "https://api.deepseek.com"
+
+  # 频率保护 (在这里改！不要在 .env 改)
+          ANALYSIS_DELAY: "35"
+
+  # 报告美化
+          REPORT_RENDERER_ENABLED: "true"
+          REPORT_HISTORY_COMPARE_N: "5"
+
+1.5-flashgemini-3-flash-preview" # 主力模型
 
           # 3. 配置 AIHubMix 渠道 (提供后备模型)
           LLM_AIHUBMIX_API_KEY: ${{ secrets.AIHUBMIX_KEY }}
