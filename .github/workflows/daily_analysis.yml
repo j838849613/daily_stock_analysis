@@ -58,25 +58,28 @@ jobs:
       
       - name: 执行股票分析
         env:
-  # 核心模型路由
+          # 1. 核心路由：告诉系统哪些电话线通了
           LLM_CHANNELS: "gemini,anthropic,openai,aihubmix"
           LITELLM_MODEL: "gemini/gemini-3-flash-preview"
-          LITELLM_FALLBACK_MODELS: "anthropic/claude-3-5-sonnet-20241022,deepseek/deepseek-reasoner"
-
-  # 引用 Secrets（这里不用改，保持引用即可）
-          LLM_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          # 修正后备模型的前缀：Claude 必须对应 anthropic，DeepSeek 对应 openai
+          LITELLM_FALLBACK_MODELS: "anthropic/claude-3-5-sonnet-20241022,openai/deepseek-reasoner"
+          
+          # 2. 修正 API Key 命名：去掉所有多余的 LLM_ 前缀，直接用最标准的名字
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-          DEEPSEEK_API_BASE: "https://api.deepseek.com"
-
-  # 报告美化
-          REPORT_RENDERER_ENABLED: "true"
-          REPORT_HISTORY_COMPARE_N: "5"
-
-          # 3. 配置 AIHubMix 渠道 (提供后备模型)
-          LLM_AIHUBMIX_API_KEY: ${{ secrets.AIHUBMIX_KEY }}
-          LLM_AIHUBMIX_BASE_URL: "https://api.aihubmix.com/v1"
+          
+          # 3. DeepSeek 配置：利用 OpenAI 的壳子跑 DeepSeek
+          OPENAI_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          OPENAI_API_BASE: "https://api.deepseek.com"
+          
+          # 4. AIHubMix 配置
+          AIHUBMIX_KEY: ${{ secrets.AIHUBMIX_KEY }}
+          # 确保 AIHubMix 里的模型前缀也正确
           LLM_AIHUBMIX_MODELS: "gpt-4o-mini,claude-3-5-sonnet"
+
+          # 5. 性能与保护参数 (解决图 10 中提到的模型映射问题)
+          LLM_TEMPERATURE: "1.0"
+          ANALYSIS_DELAY: "45"
           
           # ==========================================
           # 数据源
