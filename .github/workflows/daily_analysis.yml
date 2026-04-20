@@ -58,26 +58,23 @@ jobs:
       
       - name: 执行股票分析
         env:
-          # 1. 核心路由：告诉系统哪些电话线通了
+          # 1. 核心路由配置 (必须包含这四个，且拼写正确)
           LLM_CHANNELS: "gemini,anthropic,openai,aihubmix"
           LITELLM_MODEL: "gemini/gemini-3-flash-preview"
-          # 修正后备模型的前缀：Claude 必须对应 anthropic，DeepSeek 对应 openai
           LITELLM_FALLBACK_MODELS: "anthropic/claude-3-5-sonnet-20241022,openai/deepseek-reasoner"
           
-          # 2. 修正 API Key 命名：去掉所有多余的 LLM_ 前缀，直接用最标准的名字
+          # 2. 修正后的 API Key 映射 (去掉 LLM_ 前缀，让系统能直接认出它们)
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           
-          # 3. DeepSeek 配置：利用 OpenAI 的壳子跑 DeepSeek
+          # 3. DeepSeek 配置 (继续伪装成 OpenAI，但 Key 名字要对齐)
           OPENAI_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           OPENAI_API_BASE: "https://api.deepseek.com"
           
           # 4. AIHubMix 配置
           AIHUBMIX_KEY: ${{ secrets.AIHUBMIX_KEY }}
-          # 确保 AIHubMix 里的模型前缀也正确
-          LLM_AIHUBMIX_MODELS: "gpt-4o-mini,claude-3-5-sonnet"
 
-          # 5. 性能与保护参数 (解决图 10 中提到的模型映射问题)
+          # 5. 必须改回 1.0 的温度，否则 Gemini 3 会死循环
           LLM_TEMPERATURE: "1.0"
           
           # ==========================================
