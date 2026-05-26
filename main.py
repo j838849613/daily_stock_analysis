@@ -22,6 +22,10 @@ A股自选股智能分析系统 - 主调度程序
 - 买点偏好：缩量回踩 MA5/MA10 支撑
 """
 import os
+# 强行把长桥需要的标准变量名拍在 SDK 的脸上，堵死所有 Config from env 漏洞
+os.environ["LONGBRIDGE_APP_KEY"] = "1e4a0d76b1d699c8b17db46457ee6ce9"
+os.environ["LONGBRIDGE_APP_SECRET"] = "885a8f9335c33df344aecd9860ae7cf48b847d27c3b4e53baf700f2483ed5198"
+os.environ["LONGBRIDGE_ACCESS_TOKEN"] = "ey1234567890abcdefghijklmnopqrstuvwxyz"
 from pathlib import Path
 from typing import Dict, Optional
 
