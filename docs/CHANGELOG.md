@@ -8,7 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 > For user-friendly release highlights, see the [GitHub Releases](https://github.com/ZhuLinsen/daily_stock_analysis/releases) page.
 
 ## [Unreleased]
+- [新功能] 钉钉群机器人通知支持 — 支持通过 `DINGTALK_WEBHOOK_URL` 和 `DINGTALK_SECRET` 配置钉钉推送，并支持长文本自动切片以适配 20KB 限制。
 
+- [文档] 记录 Agent `/chat/stream` progress event 契约，说明新增 `stage_start`、`stage_done`、`pipeline_timeout`、`pipeline_budget_skipped` 的字段语义、Web 兼容边界、验证方式、回滚方式；其中 `pipeline_budget_skipped` 表示剩余预算不足、未启动下一阶段即跳过的语义；本变更不触及 provider/model/Base URL 或运行时配置迁移语义。
+- [修复] 日股/韩股 `market_phase` 补齐收盘集合竞价识别：JP 15:25-15:30 与 KR 15:20-15:30 现在会进入 `closing_auction`，避免临近收盘阶段仍被标记为普通 `intraday`；仅调整阶段标签和派生 `market_phase_summary`，不改变数据源、配置或交易日 fail-open/fail-closed 语义。
 - [修复] Discord 长报告推送按 2000 字符上限分片逐段发送，遇到 429 限流会按 `retry_after`/`Retry-After` 有限重试，避免中途失败后只收到前半段报告。
 - [改进] #1777 台股三大法人 fetcher（`TwInstitutionalFetcher`）增加缓存防击穿：并发同 (市场, 日期) 调用合并为单次上游请求，保护 TWSE T86 ~3 req/5s 限流额度；不同 key 仍并行；新增并发单次抓取、不同 key 各抓一次、HTTP 错误 fail-open 回归测试。
 - [修复] 修复桌面端启动时 `.env` 中 `WEBUI_PORT` 与 Electron 自动选择端口不一致会导致窗口继续等待旧端口并连接超时的问题。
@@ -22,11 +25,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - [修复] 修复 Web 首页个股栏在 stock-bar 摘要字段缺失或动作建议无法归类时隐藏情绪分与建议标识的问题。
 - [修复] Web 设置页左侧分类切换时仅在相关分类展示首次启动检查和 AlphaSift 辅助卡片，避免分类内容看起来没有切换。
 - [文档] 本次设置页修复为前端展示层分类可见性改造，不涉及 LLM/provider/Base URL/LiteLLM/默认模型/保存前清理或迁移语义。
+- [修复] 收敛个股分析评分与 DecisionSignal action 口径：统一 80/60/40/20 分段，避免高低分默认坍缩为 hold/watch，并在风控降级时记录 raw/adjusted score、final action 与原因。
+- [文档] 明确本轮评分/决策口径收敛不变更模型 Provider/Model/Base URL 运行时配置语义，不涉及 `.env`、配置 key 或运行时 provider 迁移。
 - [修复] 修复 macOS 桌面端从 Finder/Dock 启动时后端 PATH 看不到 Homebrew Codex CLI 的问题，并明确 Codex CLI 主分析与 Agent LiteLLM 工具调用分流诊断。
 - [测试] 台股三大法人 fetcher（TwInstitutionalFetcher）新增真实端点 live-smoke 脚本（tests/tw_institutional_live_smoke.py，非 pytest）与 @pytest.mark.network 漂移检测测试：核对 TWSE T86 / TPEx 核心字段名仍在、解析结果与原始字段一致；仅在非阻断的 network-smoke 定时任务运行，阻断门（pytest -m "not network"）不收集，离线 fixtures 无法察觉的上游字段改名/端点变动由此告警。
 - [修复] 修复 Web 设置页定时任务“立即执行一次”后台线程未传 `stock_codes` 导致任务崩溃的问题。
 - [新功能] #1743 Phase 4 新增 `claude_code_cli` generation-only 本地 CLI backend，保留 LiteLLM 默认路径、Agent 工具调用边界、per-preset extractor、最小 env allowlist 与结构化错误。
 - [新功能] #1743 Phase 4 新增 `opencode_cli` generation-only 本地 CLI backend，使用 OpenCode `run --format json --file` prompt-file 路径、JSON event extractor、Agent 边界和 provider credential 不接管约束。
+- [改进] #1743 Phase 5 增加生成后端状态、预览和冒烟测试 API 以及 Web 状态面板，区分轻量检查与 JSON 冒烟测试，并保持本地 CLI “仅生成、不支持问股工具调用”的边界。
 - [修复] #1743 Phase 4 修正 `opencode_cli` 静态指令，避免全局 JSON-only 约束影响 `generate_text()` 与大盘复盘自由文本输出。
 - [文档] #1743 Phase 4 同步本地 CLI backend 隐私/部署边界：local CLI 不是离线模型，Docker/CI/远端需自行安装登录，DSA 不读取 Claude/OpenCode credential 文件。
 - [新功能] 台股报告接入三大法人：tw 个股分析报告的 institution 区块改为展示 TWSE T86 / TPEx 三大法人原始买卖超净额（外资/投信/自营/合计，单位:股）；tw-only、严格 additive（A股/港股/美股/日韩股 offshore 流程字节不变）、fail-open（取不到数据维持 not_supported，绝不中断分析）；不接 Web、不派生 capital_flow_signal、不改评分权重或 schema。
@@ -34,9 +40,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - [改进] 台股报告完整消费三大法人：tw 个股报告的 `institution` 区块现会在报告中渲染三大法人净买卖超表格，并注入 LLM 分析 prompt 作为台股筹码过滤器（此前仅接入数据层，报告与 prompt 均未消费，导致报告出现「筹码结构：数据缺失」）；同时三大法人整市场抓取改用剩余 stage 预算而非较小的 per-symbol fetch 超时，避免单股/首档分析因冷抓取（~4-5s）超时而降级为 not_supported。tw-only、严格 additive、fail-open。
 - [修复] 台股财务金额币别标示：TWD 金额此前落入默认「元」(在 A 股语境易误读为人民币)，`_CURRENCY_SUFFIX` 补入 TWD→「新台币」，营业收入/归母净利润/经营现金流/每股现金分红均正确标注新台币。
 - [改进] 台股三大法人 fetcher 韧性加固：(1) 接入熔断器（复用 `realtime_types.CircuitBreaker`，按市场 twse/tpex 分流，连续失败 3 次→冷却 ~5min→半开探测），TWSE/TPEx 端点异常时快速跳过网络往返并 fail-open，避免端点故障时每档个股都付 timeout+throttle；(2) TPEx OpenAPI 仅服务最新交易日，调用方传入与服务日期不符的明确日期时改为 fail-open（返回无数据），避免静默返回错日资料。
+- [修复] 回测日线补全将 `605066.SH`、`SS605066`、`SS.605066` 等 A 股等价代码归一为裸代码抓取和写入，避免误向数据源请求 `SS605066` 导致回测数据不足。
 
 - [修复] 台股（tw）市场阶段（`market_phase`）新增收盘集合竞价识别：`_CLOSING_AUCTION_WINDOW_MINUTES` 缺 `tw` 键时 `.get(market, 0)` 得零宽窗口，TWSE/TPEx 13:25–13:30 的 5 分钟收盘竞价此前永远无法判定为 `closing_auction`（收盘前一刻仍 `intraday`、13:30 直接 `postmarket`）；补 `"tw": 5` 修正，附阶段边界回归测试。仅 tw 加项，cn/hk/us 与 jp/kr 行为不变。
 - [新功能] 新增 AI 建议决策风格重评估预览接口与页面预览。
+- [文档] 更新 README 三语入口和市场支持边界，明确台股个股分析已支持 `.TW` / `.TWO` suffix、三大法人报告区块、TWD 标注与收盘竞价识别，同时保留台股股票池自动补全、大盘复盘和大盘红绿灯告警的未覆盖边界。
+- [修复] Web 大盘复盘结构化数据统一格式化成交额、指数点位、涨跌幅和高/低值，避免浮点长尾或缺失值 `0.00` 直接展示；同步更新 `MarketReviewReportView` 与 `HomePage` 回归断言（如 `3150.20`）。
+- [文档] 本次变更仅涉及 Web 展示层（`apps/dsa-web`）与相关前端测试，未改动模型名、provider、Base URL、LiteLLM、`src/services/image_stock_extractor.py` 或其它后端/配置迁移语义，若需回退可直接还原本次前端补丁；兼容边界与可回退路径见现有 LLM 配置文档（如 `docs/LLM_CONFIG_GUIDE*.md`）。
 
 ## [3.24.1] - 2026-06-28
 
