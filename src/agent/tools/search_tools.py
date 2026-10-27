@@ -10,6 +10,7 @@ Tools:
 import logging
 
 from src.agent.news_evidence import record_news_evidence
+from src.agent.tools.execution import get_tool_stock_identity
 from src.agent.tools.registry import ToolParameter, ToolDefinition, ToolPolicy
 
 logger = logging.getLogger(__name__)
@@ -19,12 +20,14 @@ _NEWS_READ_POLICY = ToolPolicy.declared(
     side_effects=["network_read", "db_write_cache"],
     permissions=["news:read"],
     scope_dimensions=["stock"],
+    supported_asset_types=("stock", "index"),
 )
 _INTEL_READ_POLICY = ToolPolicy.declared(
     read_only=True,
     side_effects=["network_read", "db_write_cache"],
     permissions=["intel:read"],
     scope_dimensions=["stock"],
+    supported_asset_types=("stock", "index"),
 )
 
 
@@ -41,9 +44,32 @@ def _get_search_service():
 
 
 def _canonical_search_code(stock_code: str) -> str:
+    identity = get_tool_stock_identity(stock_code)
+    if identity is not None:
+        return identity.stock_code
     from data_provider.base import canonical_stock_code, normalize_stock_code
+    from src.services.stock_list_parser import ParseStatus, parse_analysis_target
 
-    return canonical_stock_code(normalize_stock_code(str(stock_code or "").strip()))
+    raw = str(stock_code or "").strip()
+    target = parse_analysis_target(raw)
+    if target.asset_type == ParseStatus.INDEX and target.canonical_id:
+        return target.canonical_id
+    return canonical_stock_code(normalize_stock_code(raw))
+
+
+def _resolve_search_subject(stock_code: str, stock_name: str) -> tuple[str, str]:
+    identity = get_tool_stock_identity(stock_code)
+    if identity is not None:
+        if identity.asset_type == "index":
+            return "", identity.stock_name or identity.stock_code
+        # A model-provided label is not evidence for the accepted subject.
+        return identity.stock_code, identity.stock_name or identity.stock_code
+    from src.services.stock_list_parser import ParseStatus, parse_analysis_target
+
+    target = parse_analysis_target(stock_code)
+    if target.asset_type == ParseStatus.INDEX and target.matched_index is not None:
+        return "", target.matched_index.display_name
+    return stock_code, stock_name
 
 
 def _persist_news_response(
@@ -85,11 +111,12 @@ def _persist_news_response(
 def _handle_search_stock_news(stock_code: str, stock_name: str) -> dict:
     """Search latest news for a stock."""
     service = _get_search_service()
+    query_code, query_name = _resolve_search_subject(stock_code, stock_name)
 
     if not service.is_available:
         return {"error": "No search engine available (no API keys configured)"}
 
-    response = service.search_stock_news(stock_code, stock_name, max_results=5)
+    response = service.search_stock_news(query_code, query_name, max_results=5)
 
     if not response.success:
         # 检索已发起但失败：Agent 这一轮没有拿到新闻证据，必须记 0 而不是不记，
@@ -105,7 +132,7 @@ def _handle_search_stock_news(stock_code: str, stock_name: str) -> dict:
 
     _persist_news_response(
         stock_code=stock_code,
-        stock_name=stock_name,
+        stock_name=query_name,
         dimension="latest_news",
         response=response,
     )
@@ -158,13 +185,14 @@ search_stock_news_tool = ToolDefinition(
 def _handle_search_comprehensive_intel(stock_code: str, stock_name: str) -> dict:
     """Multi-dimensional intelligence search."""
     service = _get_search_service()
+    query_code, query_name = _resolve_search_subject(stock_code, stock_name)
 
     if not service.is_available:
         return {"error": "No search engine available (no API keys configured)"}
 
     intel_results = service.search_comprehensive_intel(
-        stock_code=stock_code,
-        stock_name=stock_name,
+        stock_code=query_code,
+        stock_name=query_name,
         max_searches=6,
     )
 
@@ -174,7 +202,7 @@ def _handle_search_comprehensive_intel(stock_code: str, stock_name: str) -> dict
         return {"error": "Comprehensive intel search returned no results"}
 
     # Format into readable report
-    report = service.format_intel_report(intel_results, stock_name)
+    report = service.format_intel_report(intel_results, query_name)
 
     # 本次真正交给 Agent 的证据条数，按维度累计后一次性记录。
     evidence_count = 0
@@ -186,7 +214,7 @@ def _handle_search_comprehensive_intel(stock_code: str, stock_name: str) -> dict
             evidence_count += len(response.results)
             _persist_news_response(
                 stock_code=stock_code,
-                stock_name=stock_name,
+                stock_name=query_name,
                 dimension=dim_name,
                 response=response,
             )
